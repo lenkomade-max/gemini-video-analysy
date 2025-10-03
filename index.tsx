@@ -77,9 +77,7 @@ const App: React.FC = () => {
       }
       
       setStatusMessage('4/5: Анализ видео с помощью Gemini...');
-      console.log('[4/5] Отправляю запрос в Gemini API...');
-      console.log('[4/5] Используемый API ключ:', apiKey.substring(0, 10) + '...');
-      const ai = new GoogleGenAI({ apiKey: apiKey });
+      console.log('[4/5] Отправляю запрос через прокси-сервер...');
       
       const prompt = `Проанализируй это видео, включая его аудиодорожку. Основываясь на аудио и визуальных данных, определи наличие следующих элементов:
 1.  **Закадровый голос**: голос диктора, который не принадлежит персонажам в кадре.
@@ -90,38 +88,28 @@ const App: React.FC = () => {
 6.  **Текстовые наложения**: Любой текст, который НЕ является субтитрами (не транскрибирует речь). Примеры: заголовки, плашки, водяные знаки, информационные вставки.
 Ответь только в формате JSON, соответствующем предоставленной схеме. Не добавляй никаких пояснений или markdown-форматирования.`;
       
-      const genAIResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }, { inlineData: videoPart }] },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              voiceover: { type: Type.BOOLEAN, description: 'Наличие закадрового голоса на основе анализа аудио.' },
-              music_or_sfx: { type: Type.BOOLEAN, description: 'Наличие музыки или звуковых эффектов на основе анализа аудио.' },
-              subtitles: { type: Type.BOOLEAN, description: 'Есть ли встроенные субтитры, которые транскрибируют или переводят речь, независимо от их стиля и анимации.' },
-              subtitle_style: { type: Type.STRING, description: "Описание стиля обнаруженных субтитров (например, 'анимированные', 'статичные'). Пустая строка, если субтитров нет." },
-              visual_effects: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'Список обнаруженных визуальных эффектов.'
-              },
-              text_overlays: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'Список обнаруженных текстовых наложений (заголовки, плашки, и т.д., исключая субтитры).' 
-              },
-              analysis_confidence: { type: Type.NUMBER, description: 'Уверенность анализа от 0.0 до 1.0.' },
-            },
-            required: ["voiceover", "music_or_sfx", "subtitles", "subtitle_style", "visual_effects", "text_overlays", "analysis_confidence"]
-          },
+      // Отправляем запрос через прокси-сервер Vercel
+      const proxyResponse = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          videoData: videoPart,
+          prompt: prompt
+        })
       });
-      console.log('[4/5] Получен ответ от Gemini.');
+
+      if (!proxyResponse.ok) {
+        const errorData = await proxyResponse.json();
+        throw new Error(`Прокси-сервер ошибка: ${errorData.error || proxyResponse.status}`);
+      }
+
+      const result = await proxyResponse.json();
+      console.log('[4/5] Получен ответ от Gemini через прокси.');
       setStatusMessage('5/5: Результат получен от Gemini.');
       
-      const resultJson = JSON.parse(genAIResponse.text);
+      const resultJson = result.candidates?.[0]?.content?.parts?.[0]?.text ? JSON.parse(result.candidates[0].content.parts[0].text) : result;
       setAnalysisResult(resultJson);
       
       // Call sendCallback and wait for it to complete
