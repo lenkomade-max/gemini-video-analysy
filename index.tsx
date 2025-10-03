@@ -33,8 +33,13 @@ const App: React.FC = () => {
   
   const handleAnalyze = useCallback(async () => {
     // --- CRITICAL CHECK: API KEY ---
-    if (!process.env.API_KEY) {
-        const errorMsg = 'Ключ Gemini API не настроен. Убедитесь, что переменная окружения API_KEY доступна в среде выполнения.';
+    console.log('[ДИАГНОСТИКА] Проверка API ключа...');
+    console.log('[ДИАГНОСТИКА] process.env.API_KEY:', process.env.API_KEY ? 'ЕСТЬ' : 'НЕТ');
+    console.log('[ДИАГНОСТИКА] process.env.GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'ЕСТЬ' : 'НЕТ');
+    
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        const errorMsg = 'Ключ Gemini API не настроен. Убедитесь, что переменная окружения GEMINI_API_KEY добавлена в Vercel и приложение передеплоено.';
         console.error(`[ОШИБКА КОНФИГУРАЦИИ] ${errorMsg}`);
         setError(errorMsg);
         setStatusMessage('Анализ прерван из-за ошибки конфигурации.');
@@ -73,7 +78,8 @@ const App: React.FC = () => {
       
       setStatusMessage('4/5: Анализ видео с помощью Gemini...');
       console.log('[4/5] Отправляю запрос в Gemini API...');
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      console.log('[4/5] Используемый API ключ:', apiKey.substring(0, 10) + '...');
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       
       const prompt = `Проанализируй это видео, включая его аудиодорожку. Основываясь на аудио и визуальных данных, определи наличие следующих элементов:
 1.  **Закадровый голос**: голос диктора, который не принадлежит персонажам в кадре.
