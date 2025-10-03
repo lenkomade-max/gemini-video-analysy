@@ -119,7 +119,7 @@ const App: React.FC = () => {
       console.log('[4/5] Получен ответ от Gemini.');
       setStatusMessage('5/5: Результат получен от Gemini.');
       
-      const resultJson = genAIResponse.candidates?.[0]?.content?.parts?.[0]?.text ? JSON.parse(genAIResponse.candidates[0].content.parts[0].text) : genAIResponse;
+      const resultJson = JSON.parse(genAIResponse.text);
       setAnalysisResult(resultJson);
       
       // Call sendCallback and wait for it to complete
